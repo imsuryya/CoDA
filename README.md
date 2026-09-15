@@ -1,0 +1,453 @@
+# Coding Agents on Databricks Apps
+
+[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?logo=github)](https://github.com/datasciencemonkey/coding-agents-databricks-apps/generate)
+[![Deploy to Databricks](https://img.shields.io/badge/Deploy-Databricks%20Apps-FF3621?logo=databricks&logoColor=white)](docs/deployment.md)
+[![Agents](https://img.shields.io/badge/Agents-5%20included-green)](#whats-inside)
+[![Skills](https://img.shields.io/badge/Skills-43%20built--in-blue)](#-all-43-skills)
+
+> Run Claude Code, Codex, Gemini CLI, Hermes Agent, and OpenCode in your browser — zero setup, wired to your Databricks workspace.
+
+---
+
+## Screenshots
+
+<div align="center">
+  <img src="docs/screenshots/demo.gif" width="900" alt="CODA demo — splash screen, multi-tab terminals, keyboard shortcuts"/>
+</div>
+
+---
+
+## What's Inside
+
+🟠 **Claude Code** — Anthropic's coding agent with 39 Databricks skills + 2 MCP servers
+
+🟣 **Codex** — OpenAI's coding agent, pre-configured for Databricks
+
+🔵 **Gemini CLI** — Google's coding agent with shared skills
+
+🟡 **Hermes Agent** — NousResearch's multi-provider AI CLI with tool-calling and skills
+
+🟢 **OpenCode** — Open-source agent with multi-provider support
+
+Every agent installs at boot and connects to your **Databricks AI Gateway** — on first terminal session, paste a short-lived PAT and all CLIs are configured automatically. Token auto-rotates every 10 minutes.
+
+---
+
+## Why Databricks
+
+This isn't just a terminal in the cloud. Running coding agents on Databricks gives you enterprise-grade infrastructure out of the box:
+
+| | Benefit | What you get |
+|---|---|---|
+| 🔐 | **Unity Catalog Integration** | All data access governed by UC permissions — agents can only touch what your identity allows |
+| 🤖 | **AI Gateway** | Route all LLM calls through a single control plane — swap models, set rate limits, and manage API keys centrally |
+| 🔀 | **Multi-AI & Multi-Agent** | Switch between Claude, GPT, Gemini, and open-source models on the fly — change the model or agent without redeploying |
+| 📊 | **Consumption Monitoring** | Track token usage, cost, and latency per user and per model via the AI Gateway control center dashboard |
+| 🔍 | **MLflow Tracing** | Every Claude Code session is automatically traced — review prompts, tool calls, and outputs in your MLflow experiment |
+| 🧬 | **Assess Traces with Genie** | Point Genie at your MLflow traces to ask natural-language questions about agent behavior, cost patterns, and session quality |
+| 📝 | **App Logs to Delta** | Optionally route application logs to Delta tables for long-term retention, querying, and dashboarding |
+
+---
+
+## Terminal Features
+
+| | |
+|---|---|
+| 🎨 **8 Themes** | Dracula, Nord, Solarized, Monokai, GitHub Dark, and more |
+| ✂️ **Split Panes** | Run two sessions side by side with a draggable divider |
+| 🌐 **WebSocket I/O** | Real-time terminal output over WebSocket — zero-latency, eliminates polling delay |
+| 🔁 **HTTP Polling Fallback** | Automatic fallback via Web Worker when WebSocket is unavailable |
+| 🚀 **Parallel Setup** | 6 agent setups run in parallel (~5x faster startup) |
+| 🔍 **Search** | Find anything in your terminal history (Ctrl+Shift+F) |
+| 🎤 **Voice Input** | Dictate commands with your mic (Option+V) |
+| 📋 **Image Paste** | Paste or drag-and-drop images into the terminal — saved to `~/uploads/`, path inserted automatically |
+| ⌨️ **Customizable** | Fonts, font sizes, themes — all persisted across sessions |
+| 🔄 **Workspace Sync** | Every `git commit` auto-syncs to `/Workspace/Users/{you}/projects/` |
+| ✏️ **Micro Editor** | Modern terminal editor, pre-installed |
+| ⚙️ **Databricks CLI** | Installed at boot, configured interactively on first session |
+| 📊 **MLflow Tracing** | Every Claude Code session is automatically traced to your Databricks MLflow experiment |
+
+---
+
+## MLflow Tracing
+
+Claude Code sessions can be **automatically traced** to a Databricks MLflow experiment. Tracing is disabled by default — set `MLFLOW_CLAUDE_TRACING_ENABLED=true` in your app environment to enable it.
+
+### How it works
+
+```
+Claude Code session starts
+        │
+        ▼
+   Environment vars set automatically:
+   MLFLOW_TRACKING_URI=databricks
+   MLFLOW_EXPERIMENT_NAME=/Users/{you}/{app-name}
+        │
+        ▼
+   You work normally — code, debug, deploy
+        │
+        ▼
+   Session ends → Stop hook fires
+        │
+        ▼
+   Full session transcript logged as an MLflow trace
+   at /Users/{you}/{app-name} in your workspace
+```
+
+### What gets traced
+
+When a Claude Code session ends, the **Stop hook** automatically calls `mlflow.claude_code.hooks.stop_hook_handler()`, which captures the full session transcript — your prompts, agent actions, tool calls, and outputs — and logs it as an MLflow trace.
+
+### Where traces live
+
+Traces are stored in a Databricks MLflow experiment at:
+
+```
+/Users/{your-email}/{app-name}
+```
+
+For example, if you're `jane@company.com` and your app is named `coding-agents`:
+
+```
+/Users/jane@company.com/coding-agents
+```
+
+View them in the Databricks UI: **Workspace > Machine Learning > Experiments**.
+
+### Configuration
+
+Tracing is configured during app startup by `setup/setup_mlflow.py`, which merges the following into `~/.claude/settings.json`:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `MLFLOW_CLAUDE_TRACING_ENABLED` | `false` | Claude Code tracing (disabled by default, set to `true` to enable) |
+| `MLFLOW_TRACKING_URI` | `databricks` | Routes traces to Databricks backend |
+| `MLFLOW_EXPERIMENT_NAME` | `/Users/{owner}/{app}` | Target experiment path |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `""` | Overrides container OTEL to prevent trace loss |
+| Stop hook | `uv run python -c "from mlflow.claude_code.hooks import stop_hook_handler; stop_hook_handler()"` | Fires on session end |
+
+Tracing is skipped gracefully if `APP_OWNER` is not set (e.g., local dev without Databricks).
+
+---
+
+## Quick Start
+
+### Deploy to Databricks Apps
+
+1. Click [**Use this template**](https://github.com/datasciencemonkey/coding-agents-databricks-apps/generate) to create your own repo
+2. Go to **Databricks → Apps → Create App**
+3. Choose **Custom App** and connect your new repo
+4. Deploy
+5. Open the app — paste a short-lived PAT when prompted on first terminal session
+
+That's it. No secrets to configure, no pre-deployment setup.
+
+[→ Full deployment guide](docs/deployment.md) — environment variables, gateway config, and advanced options.
+
+### Run locally
+
+1. Click [**Use this template**](https://github.com/datasciencemonkey/coding-agents-databricks-apps/generate) to create your own repo
+2. Clone your new repo and run:
+
+```bash
+git clone https://github.com/<you>/<your-repo>.git
+cd <your-repo>
+uv run python app.py
+```
+
+Open [http://localhost:8000](http://localhost:8000) — type `claude`, `codex`, `gemini`, or `opencode` to start coding.
+
+---
+
+## Why This Exists
+
+On Jan 26, 2026, Andrej Karpathy made [this viral tweet](https://x.com/karpathy/status/2015883857489522876?s=46&t=tEsLJXJnGFIkaWs-Bhs1yA) about the future of coding. Boris Cherny, the creator of Claude Code, responded:
+
+![Boris Cherny's response](image.png)
+
+This template repo opens that vision up for every Databricks user — no IDE setup, no local installs. Click "Use this template", deploy to Databricks Apps, and start coding with AI in your browser.
+
+---
+
+<details>
+<summary><strong>🧠 All 43 Skills</strong></summary>
+
+### Databricks Skills (25) — [ai-dev-kit](https://github.com/databricks-solutions/ai-dev-kit)
+
+| Category | Skills |
+|----------|--------|
+| AI & Agents | agent-bricks, genie, mlflow-eval, model-serving |
+| Analytics | aibi-dashboards, unity-catalog, metric-views |
+| Data Engineering | declarative-pipelines, jobs, structured-streaming, synthetic-data, zerobus-ingest |
+| Development | asset-bundles, app-apx, app-python, python-sdk, config, spark-python-data-source |
+| Storage | lakebase-autoscale, lakebase-provisioned, vector-search |
+| Reference | docs, dbsql, pdf-generation |
+| Meta | refresh-databricks-skills |
+
+### Superpowers Skills (14) — [obra/superpowers](https://github.com/obra/superpowers)
+
+| Category | Skills |
+|----------|--------|
+| Build | brainstorming, writing-plans, executing-plans |
+| Code | test-driven-dev, subagent-driven-dev |
+| Debug | systematic-debugging, verification |
+| Review | requesting-review, receiving-review |
+| Ship | finishing-branch, git-worktrees |
+| Meta | dispatching-agents, writing-skills, using-superpowers |
+
+### BDD Skills (4)
+
+| Category | Skills |
+|----------|--------|
+| Testing | bdd-features, bdd-run, bdd-scaffold, bdd-steps |
+
+</details>
+
+<details>
+<summary><strong>🔌 MCP Servers</strong></summary>
+
+### Built-in MCP Clients
+
+| Server | What it does |
+|--------|-------------|
+| **DeepWiki** | Ask questions about any GitHub repo — gets AI-powered answers from the codebase |
+| **Exa** | Web search and code context retrieval for up-to-date information |
+
+### CoDA MCP Server (exposed at `/mcp`)
+
+CoDA itself exposes an **MCP server** that any MCP-compatible client can connect to — delegate coding tasks to AI agents running on Databricks, without needing the terminal UI.
+
+| Tool | Purpose |
+|------|---------|
+| `coda_run` | Fire-and-forget: submit a coding task, get back immediately |
+| `coda_inbox` | Dashboard: see all running/completed/failed tasks at a glance |
+| `coda_get_result` | Pull the full structured result of a completed task |
+
+**Why this matters:** Any tool that speaks MCP can use your Databricks-hosted coding agents — no custom integration needed.
+
+#### Example: Databricks Genie Code
+
+Genie Code connects to CoDA's MCP endpoint and delegates coding work to agents running in the background:
+
+```
+User → Genie Code: "Build me a sales pipeline using the transactions table"
+
+Genie Code calls coda_run(prompt="Build a sales pipeline...", email="user@company.com",
+                          context='{"tables": ["sales.transactions"]}')
+
+→ Returns immediately: {task_id: "task-abc", status: "running"}
+→ User keeps chatting with Genie Code while the agent works
+
+User → Genie Code: "How's my pipeline coming?"
+
+Genie Code calls coda_inbox()
+→ {tasks: [{task_id: "task-abc", status: "completed", summary: "Built pipeline.py..."}]}
+
+Genie Code calls coda_get_result(task_id="task-abc", session_id="sess-123")
+→ {summary: "Created pipeline.py with 3 stages", files_changed: ["pipeline.py"], ...}
+```
+
+#### Connecting MCP Clients (Claude Code, Claude Desktop, Cursor, etc.)
+
+Databricks Apps use OAuth — not PATs — for authentication. A static `Authorization: Bearer <PAT>` header will get a `302` redirect to the OAuth login page. To connect any MCP client, use the **stdio bridge** (`tools/coda-bridge.py`) which injects fresh OAuth tokens automatically via `databricks auth token`.
+
+**1. Copy the bridge script:**
+
+```bash
+mkdir -p ~/.claude/mcp-bridges
+cp tools/coda-bridge.py ~/.claude/mcp-bridges/
+```
+
+**2. Add to your MCP client settings** (e.g. `~/.claude/settings.json`):
+
+```json
+"coda-mcp": {
+    "type": "stdio",
+    "command": "python3",
+    "args": ["/path/to/.claude/mcp-bridges/coda-bridge.py"],
+    "env": {
+        "CODA_MCP_URL": "https://your-app.databricksapps.com/mcp",
+        "DATABRICKS_PROFILE": "your-profile"
+    }
+}
+```
+
+**3. Restart your MCP client.**
+
+The bridge reads `CODA_MCP_URL` and `DATABRICKS_PROFILE` from environment — no hardcoded values. If you redeploy the app or switch workspaces, just update the `env` block.
+
+**Prerequisites:** `databricks` CLI installed and authenticated (`databricks auth login -p <profile>`), Python 3.8+, no pip dependencies.
+
+**Troubleshooting:** Bridge logs go to stderr. If you see `Auth failed (302)`, refresh your CLI session with `databricks auth login -p <profile>`. See [full setup guide](docs/mcp-client-setup.md) for details.
+
+#### Task Chaining
+
+Chain tasks by passing `previous_session_id` — the new agent reads the prior task's results for context:
+
+```
+coda_run(prompt="Add monitoring to the pipeline", previous_session_id="sess-123")
+```
+
+See [MCP v2 Design Doc](docs/mcp-v2-background-execution.md) for the full protocol reference.
+
+</details>
+
+<details>
+<summary><strong>🏗️ Architecture</strong></summary>
+
+```
+┌─────────────────────┐  WebSocket    ┌─────────────────────┐
+│   Browser Client    │◄═══════════►│   Gunicorn + Flask   │
+│   (xterm.js)        │  (primary)    │   + Flask-SocketIO   │
+│                     │───────────►│   (PTY Manager)      │
+│                     │  HTTP Poll    │                     │
+│                     │  (fallback)   │                     │
+└─────────────────────┘               └─────────────────────┘
+         │                                     │
+         │ on first load                       │ on startup
+         ▼                                     ▼
+┌─────────────────────┐               ┌─────────────────────┐
+│   Setup Progress    │               │   Background Setup  │
+│   (inline UI)       │               │   (11 steps, 5→6 ║) │
+└─────────────────────┘               └─────────────────────┘
+                                               │
+                                               ▼
+                                      ┌─────────────────────┐
+                                      │   Shell Process     │
+                                      │   (/bin/bash)       │
+                                      └─────────────────────┘
+```
+
+### Startup Flow
+
+1. Gunicorn starts, calls `initialize_app()` via `post_worker_init` hook
+2. App serves the terminal UI with inline setup progress
+3. Background thread runs setup: 5 sequential steps (git config, micro editor, GitHub CLI, Databricks CLI upgrade, content-filter proxy), then 6 agent setups (`setup/setup_claude.py`, `setup/setup_codex.py`, etc.) run in parallel via `ThreadPoolExecutor`
+4. `/api/setup-status` endpoint reports progress to the UI
+5. Once complete, the terminal becomes interactive
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Terminal UI with inline setup progress |
+| `/health` | GET | Health check with session count and setup status |
+| `/api/setup-status` | GET | Setup progress for the UI |
+| `/api/version` | GET | App version |
+| `/api/session` | POST | Create new terminal session |
+| `/api/input` | POST | Send input to terminal |
+| `/api/output` | POST | Poll for terminal output (single session) |
+| `/api/output-batch` | POST | Batch poll output for multiple sessions |
+| `/api/heartbeat` | POST | Lightweight keepalive (no buffer drain) |
+| `/api/resize` | POST | Resize terminal dimensions |
+| `/api/upload` | POST | Upload file (clipboard image paste) |
+| `/api/session/close` | POST | Close terminal session |
+| `/mcp` | POST | MCP JSON-RPC endpoint (CoDA tools) |
+
+### WebSocket Events (Socket.IO)
+
+| Event | Direction | Description |
+|-------|-----------|-------------|
+| `join_session` | Client → Server | Join session room for output delivery |
+| `leave_session` | Client → Server | Leave session room |
+| `terminal_input` | Client → Server | Send keystrokes to PTY |
+| `terminal_resize` | Client → Server | Resize terminal |
+| `heartbeat` | Client → Server | Keepalive for idle sessions |
+| `terminal_output` | Server → Client | Push PTY output in real time |
+| `session_exited` | Server → Client | Shell process exited |
+| `session_closed` | Server → Client | Session terminated by server |
+| `shutting_down` | Server → Client | Server restarting (SIGTERM) |
+
+</details>
+
+<details>
+<summary><strong>⚙️ Configuration</strong></summary>
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABRICKS_TOKEN` | No | Optional. If not set, the app prompts for a token on first session. Auto-rotated every 10 minutes |
+| `HOME` | Yes | Set to `/app/python/source_code` in app.yaml |
+| `ANTHROPIC_MODEL` | No | Claude model name (default: `databricks-claude-opus-4-7`) |
+| `CODEX_MODEL` | No | Codex model name (default: `databricks-gpt-5-5`) |
+| `GEMINI_MODEL` | No | Gemini model name (default: `databricks-gemini-2-5-pro`) |
+| `DATABRICKS_GATEWAY_HOST` | No | AI Gateway URL override. Auto-discovered from `DATABRICKS_WORKSPACE_ID` if unset |
+
+### Security Model
+
+Single-user app — the owner is resolved via the app's service principal and Apps API (`app.creator`), with no PAT required at deploy time. Authorization checks `X-Forwarded-Email` against `app.creator`. On first terminal session, the user pastes a short-lived PAT interactively. Tokens auto-rotate every 10 minutes (15-minute lifetime), with old tokens proactively revoked. On restart, the user re-pastes (no persistence by design).
+
+### Gunicorn
+
+Production uses `workers=1` (PTY state is process-local), `threads=16` (concurrent polling + WebSocket), `gthread` worker class, `timeout=60` (long-lived WebSocket connections).
+
+</details>
+
+<details>
+<summary><strong>📁 Project Structure</strong></summary>
+
+```
+coding-agents-databricks-apps/
+├── app.py                       # Flask backend + PTY management + setup orchestration
+├── app_state.py                 # Shared app state (setup progress, session registry)
+├── app.yaml                     # Databricks Apps deployment config (gunicorn)
+├── cli_auth.py                  # Interactive PAT setup + CLI credential writer
+├── content_filter_proxy.py      # Proxy that sanitises empty-content blocks for OpenCode
+├── gunicorn.conf.py             # Gunicorn production server config
+├── pat_rotator.py               # Background PAT auto-rotation (10-min cycle)
+├── pyproject.toml               # Package metadata + uv config (supply-chain guardrails)
+├── requirements.txt             # Compiled from pyproject.toml (Dependabot compatibility)
+├── requirements.lock            # Hash-pinned lockfile (auto-regenerated by CI)
+├── Makefile                     # Deploy, redeploy, status, and cleanup targets
+├── sync_to_workspace.py         # Post-commit hook: sync to Workspace
+├── utils.py                     # Utility functions (ensure_https, gateway discovery)
+├── coda_mcp/                    # MCP server package (CoDA — Coding Agents)
+│   ├── __init__.py
+│   ├── mcp_server.py            # FastMCP tool definitions (coda_run, coda_inbox, coda_get_result)
+│   ├── mcp_endpoint.py          # Flask Blueprint: JSON-RPC /mcp endpoint
+│   ├── mcp_asgi.py              # ASGI bridge (optional, for native MCP SDK transport)
+│   └── task_manager.py          # Disk-based session/task state manager
+├── setup/                       # Agent setup scripts (run at boot)
+│   ├── setup_claude.py          # Claude Code CLI + MCP configuration
+│   ├── setup_codex.py           # Codex CLI configuration
+│   ├── setup_gemini.py          # Gemini CLI configuration
+│   ├── setup_opencode.py        # OpenCode configuration
+│   ├── setup_hermes.py          # Hermes Agent configuration
+│   ├── setup_databricks.py      # Databricks CLI configuration
+│   ├── setup_mlflow.py          # MLflow tracing auto-configuration
+│   └── setup_proxy.py           # Content-filter proxy startup
+├── scripts/                     # Shell scripts
+│   ├── install_micro.sh         # Micro editor installer
+│   ├── install_gh.sh            # GitHub CLI installer (OS/arch-aware)
+│   └── install_databricks_cli.sh # Databricks CLI upgrade script
+├── static/
+│   ├── index.html               # Terminal UI (xterm.js + split panes + WebSocket)
+│   ├── favicon.svg              # App favicon
+│   ├── poll-worker.js           # Web Worker for HTTP polling fallback
+│   └── lib/
+│       ├── xterm.js             # xterm.js terminal emulator
+│       └── socket.io.min.js     # Vendored Socket.IO client
+├── .claude/
+│   └── skills/                  # 39 pre-installed skills
+├── .github/
+│   └── workflows/
+│       ├── dependency-audit.yml # Weekly CVE audit + lockfile drift check
+│       └── update-lockfile.yml  # Auto-regenerate requirements.lock on push
+├── tools/
+│   └── coda-bridge.py           # Stdio-to-HTTP MCP bridge (OAuth token injection)
+└── docs/
+    ├── deployment.md            # Full Databricks Apps deployment guide
+    ├── mcp-client-setup.md      # MCP client setup guide (bridge config)
+    ├── mcp-v2-background-execution.md  # MCP server design doc
+    ├── prd/                     # Product requirement documents
+    └── plans/                   # Design documentation
+```
+
+</details>
+
+---
+
+## Technologies
+
+Flask · Flask-SocketIO · Socket.IO · Gunicorn · xterm.js · Python PTY · uv · Databricks SDK · Databricks AI Gateway · MLflow

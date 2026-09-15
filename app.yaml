@@ -1,0 +1,20 @@
+command:
+  - uvicorn
+  - coda_mcp.mcp_asgi:app
+  - --host
+  - 0.0.0.0
+  - --port
+  - "8000"
+env:
+  - name: HOME
+    value: /app/python/source_code
+  - name: ANTHROPIC_MODEL
+    value: databricks-claude-opus-4-7
+  - name: GEMINI_MODEL
+    value: databricks-gemini-2-5-pro
+  - name: CODEX_MODEL
+    value: databricks-gpt-5-5
+  - name: CLAUDE_CODE_DISABLE_AUTO_MEMORY
+    value: 0
+  - name: MAX_CONCURRENT_SESSIONS
+    value: "5"
